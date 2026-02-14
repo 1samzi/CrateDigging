@@ -32,7 +32,7 @@ body {
 
 .tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin: 14px 0 18px;
 }
@@ -53,19 +53,28 @@ body {
   border-color: #2563eb;
 }
 
+.signout {
+  margin-top: 6px;
+}
+
 .feed {
   display: grid;
   gap: 14px;
-  max-height: calc(100vh - 190px);
+  max-height: calc(100vh - 220px);
   overflow-y: auto;
   padding-right: 4px;
   scroll-snap-type: y mandatory;
 }
 
-.clip-card {
+.clip-card,
+.auth-panel,
+.upload-panel {
   background: #1f2937;
   border-radius: 20px;
   padding: 20px;
+}
+
+.clip-card {
   min-height: 300px;
   scroll-snap-align: start;
 }
@@ -73,6 +82,10 @@ body {
 .genre {
   color: #93c5fd;
   font-weight: 700;
+}
+
+.tags {
+  color: #93c5fd;
 }
 
 .primary {
@@ -111,6 +124,26 @@ body {
   background: #2563eb;
 }
 
+.stack {
+  display: grid;
+  gap: 10px;
+}
+
+input,
+select {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #fff;
+  padding: 10px;
+}
+
+.error {
+  color: #fca5a5;
+}
+
+.info,
 .empty-state {
   color: #9ca3af;
   text-align: center;

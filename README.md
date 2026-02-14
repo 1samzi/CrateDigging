@@ -1,42 +1,66 @@
-# CrateDigger (React Web App)
+# CrateDigger (React + Firebase)
 
-A web-first sample discovery app for producers.
+CrateDigger is a web app for producers to discover and share sample clips.
 
-## What this version does
+## Features
 
-- **Home tab** with a vertical, Shorts-style scrolling feed
-- **Likes tab** that only shows samples you've liked
-- Audio preview playback (play/pause)
-- Download button on every sample card
-- Genre/BPM/highlight metadata per sample
+- Email/password user accounts with Firebase Auth
+- Home feed loaded from Firestore (no static sample seed)
+- Likes tab persisted per user in Firestore
+- Upload tab for MP3 files + genre + vibe tags + highlight + BPM
+- Files stored in Firebase Storage with downloadable file URLs
+- Shorts-style vertical feed with preview, like, and download actions
 
-## Run locally
+## 1) Install
 
 ```bash
 npm install
+```
+
+## 2) Add Firebase environment variables
+
+Create `.env` in the project root:
+
+```bash
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
+
+## 3) Run
+
+```bash
 npm run dev
 ```
 
-Open the local URL shown by Vite (typically `http://localhost:5173`).
+## Firestore structure
 
-## App layout
+- `samples/{sampleId}`
+  - `title`, `genre`, `tags[]`, `highlight`, `bpm`
+  - `producer`, `audioUrl`, `downloadUrl`, `storagePath`
+  - `userId`, `createdAt`
+- `users/{uid}/likes/{sampleId}`
+  - `createdAt`
 
-- `src/App.jsx` - home + likes tabs and like state
-- `src/components/SwipeDeck.js` - scrolling feed cards (web-first, no swipe gestures)
-- `src/hooks/useAudioPreview.js` - browser `Audio` hook for previews
-- `src/data/sampleClips.js` - sample data
-- `src/styles.css` - styling including scroll container
+## Suggested Firebase Security Rules (starter)
 
-## Why this approach is best for web
+Use strict rules before production. Starter example:
 
-On web, vertical scrolling is more natural than touch swipe cards. This feed behaves more like YouTube Shorts/Reels:
+- allow signed-in users to read samples
+- allow signed-in users to write only their own samples
+- allow users to manage only their own likes
+- allow storage write/read under authenticated constraints
 
-- easier on desktop and mobile browsers
-- no fragile swipe gesture handling
-- cleaner discoverability with quick scroll + preview + download
+## App files
 
-## Next steps
-
-- Replace static sample data with backend data (Firebase/Firestore)
-- Persist likes per user account
-- Add upload flow + tags + server-side downloadable files
+- `src/lib/firebase.jsx` - Firebase app/auth/firestore/storage setup
+- `src/hooks/useAuth.jsx` - auth session listener
+- `src/hooks/useSamples.jsx` - realtime Firestore samples feed
+- `src/hooks/useLikes.jsx` - per-user likes persistence
+- `src/components/AuthPanel.jsx` - login/signup UI
+- `src/components/UploadForm.jsx` - MP3 upload flow + metadata
+- `src/components/SwipeDeck.jsx` - vertical feed cards
+- `src/App.jsx` - tab shell and app state wiring

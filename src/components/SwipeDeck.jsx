@@ -1,11 +1,10 @@
-import React from "react";
 import useAudioPreview from '../hooks/useAudioPreview';
 
 export default function SwipeDeck({ samples, likedIds, onToggleLike }) {
   const { isPlaying, activeUrl, playOrPause } = useAudioPreview();
 
   if (!samples.length) {
-    return <p className="empty-state">No samples yet.</p>;
+    return <p className="empty-state">No samples yet. Upload one in the Upload tab.</p>;
   }
 
   return (
@@ -21,6 +20,7 @@ export default function SwipeDeck({ samples, likedIds, onToggleLike }) {
             <p>By {sample.producer}</p>
             <p>BPM: {sample.bpm}</p>
             <p>Highlight: {sample.highlight}</p>
+            {sample.tags?.length ? <p className="tags">#{sample.tags.join(' #')}</p> : null}
 
             <button className="primary" onClick={() => playOrPause(sample.audioUrl)}>
               {isActive ? 'Pause Preview' : 'Play Preview'}
@@ -30,7 +30,7 @@ export default function SwipeDeck({ samples, likedIds, onToggleLike }) {
               <button className={isLiked ? 'selected' : ''} onClick={() => onToggleLike(sample.id)}>
                 {isLiked ? 'Liked' : 'Like'}
               </button>
-              <a className="download" href={sample.audioUrl} download>
+              <a className="download" href={sample.downloadUrl || sample.audioUrl} download>
                 Download
               </a>
             </div>
