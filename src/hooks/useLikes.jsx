@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { subscribeLikes, toggleLike as toggleLikeStore } from '../lib/backend';
 
 export default function useLikes(user) {
   const [likedIds, setLikedIds] = useState([]);
@@ -11,26 +10,13 @@ export default function useLikes(user) {
       return undefined;
     }
 
-    const likesRef = collection(db, 'users', user.uid, 'likes');
-    const unsubscribe = onSnapshot(likesRef, (snapshot) => {
-      setLikedIds(snapshot.docs.map((entry) => entry.id));
-    });
-
+    const unsubscribe = subscribeLikes(user.uid, setLikedIds);
     return unsubscribe;
   }, [user]);
 
   const toggleLike = async (sampleId) => {
-    if (!user) {
-      return;
-    }
-
-    const likeRef = doc(db, 'users', user.uid, 'likes', sampleId);
-    if (likedIds.includes(sampleId)) {
-      await deleteDoc(likeRef);
-      return;
-    }
-
-    await setDoc(likeRef, { createdAt: Date.now() });
+    if (!user) return;
+    await toggleLikeStore(user.uid, sampleId);
   };
 
   return { likedIds, toggleLike };

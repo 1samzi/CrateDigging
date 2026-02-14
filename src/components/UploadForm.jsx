@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from '../lib/firebase';
+import { uploadSample } from '../lib/backend';
 
 const GENRES = ['hip hop', 'trap', 'EDM', 'lo-fi', 'drill', 'R&B', 'house'];
 
@@ -23,36 +21,22 @@ export default function UploadForm({ user }) {
 
     setStatus('Uploading...');
 
-    const storagePath = `samples/${user.uid}/${Date.now()}-${file.name}`;
-    const fileRef = ref(storage, storagePath);
-    await uploadBytes(fileRef, file, { contentType: file.type || 'audio/mpeg' });
-    const downloadUrl = await getDownloadURL(fileRef);
-
     const tags = vibeTags
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean);
 
-    await addDoc(collection(db, 'samples'), {
-      title,
-      genre,
-      tags,
-      highlight,
-      bpm: Number(bpm),
-      producer: user.email,
-      audioUrl: downloadUrl,
-      downloadUrl,
-      storagePath,
-      userId: user.uid,
-      createdAt: serverTimestamp(),
-    });
-
-    setTitle('');
-    setVibeTags('');
-    setHighlight('');
-    setBpm('140');
-    setFile(null);
-    setStatus('Upload complete. Your sample is live in Home.');
+    try {
+      await uploadSample(user, { title, genre, tags, highlight, bpm, file });
+      setTitle('');
+      setVibeTags('');
+      setHighlight('');
+      setBpm('140');
+      setFile(null);
+      setStatus('Upload complete. Your sample is live in Home.');
+    } catch (error) {
+      setStatus(error.message);
+    }
   };
 
   return (
@@ -70,12 +54,7 @@ export default function UploadForm({ user }) {
         <input value={vibeTags} onChange={(event) => setVibeTags(event.target.value)} placeholder="vibe tags, comma separated" />
         <input value={highlight} onChange={(event) => setHighlight(event.target.value)} placeholder="Highlight cue" required />
         <input value={bpm} onChange={(event) => setBpm(event.target.value)} type="number" min={40} max={220} required />
-        <input
-          type="file"
-          accept="audio/mpeg,audio/mp3"
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          required
-        />
+        <input type="file" accept="audio/mpeg,audio/mp3" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />
         <button type="submit" className="primary">
           Upload MP3
         </button>

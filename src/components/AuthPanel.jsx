@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 
-export default function AuthPanel() {
+export default function AuthPanel({ onLogin, onSignup }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,9 +12,9 @@ export default function AuthPanel() {
 
     try {
       if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
+        await onLogin(email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        await onSignup(email, password);
       }
     } catch (err) {
       setError(err.message);
@@ -27,13 +25,7 @@ export default function AuthPanel() {
     <section className="auth-panel">
       <h2>{mode === 'login' ? 'Login' : 'Create account'}</h2>
       <form onSubmit={submit} className="stack">
-        <input
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          required
-        />
+        <input type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <input
           type="password"
           placeholder="At least 6 characters"

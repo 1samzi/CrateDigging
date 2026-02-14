@@ -1,12 +1,10 @@
 import { useMemo, useState } from 'react';
-import { signOut } from 'firebase/auth';
 import AuthPanel from './components/AuthPanel';
 import SwipeDeck from './components/SwipeDeck';
 import UploadForm from './components/UploadForm';
 import useAuth from './hooks/useAuth';
 import useLikes from './hooks/useLikes';
 import useSamples from './hooks/useSamples';
-import { auth } from './lib/firebase';
 
 const TABS = {
   HOME: 'home',
@@ -16,7 +14,7 @@ const TABS = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(TABS.HOME);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, login, signup, logout } = useAuth();
   const { samples, loading: samplesLoading } = useSamples();
   const { likedIds, toggleLike } = useLikes(user);
 
@@ -34,9 +32,9 @@ export default function App() {
       <main className="app">
         <header className="top-bar">
           <h1>CrateDigger</h1>
-          <p>Login to discover, like, and upload producer-ready MP3 samples.</p>
+          <p>Sign in to discover, like, and upload producer-ready MP3 samples.</p>
         </header>
-        <AuthPanel />
+        <AuthPanel onLogin={login} onSignup={signup} />
       </main>
     );
   }
@@ -48,7 +46,7 @@ export default function App() {
       <header className="top-bar">
         <h1>CrateDigger</h1>
         <p>Welcome {user.email}</p>
-        <button className="tab signout" onClick={() => signOut(auth)}>
+        <button className="tab signout" onClick={logout}>
           Sign out
         </button>
       </header>
