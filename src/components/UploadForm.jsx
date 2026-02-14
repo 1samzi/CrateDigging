@@ -55,6 +55,7 @@ export default function UploadForm({ user }) {
         <input value={highlight} onChange={(event) => setHighlight(event.target.value)} placeholder="Highlight cue" required />
         <input value={bpm} onChange={(event) => setBpm(event.target.value)} type="number" min={40} max={220} required />
         <input type="file" accept="audio/mpeg,audio/mp3" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />
+        <p className="info">Demo upload limit: 20MB per MP3.</p>
         <button type="submit" className="primary">
           Upload MP3
         </button>

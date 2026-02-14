@@ -26,7 +26,9 @@ npm run dev
 ## Notes about backend
 
 This starter now runs without Firebase so it works immediately after install.
-Data is persisted in browser `localStorage`.
+Metadata (users, likes, sample details) is persisted in browser `localStorage`, while uploaded audio blobs are stored in `IndexedDB` to avoid localStorage quota crashes.
+
+Demo uploads are capped at 20MB per file.
 
 If you want cloud sync across devices, you can swap `src/lib/backend.jsx` to a Firebase/Firestore implementation later.
 

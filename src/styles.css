@@ -149,3 +149,9 @@ select {
   text-align: center;
   margin-top: 24px;
 }
+
+.primary:disabled,
+.download.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

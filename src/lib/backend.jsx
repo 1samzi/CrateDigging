@@ -5,9 +5,18 @@ const KEYS = {
   likesPrefix: 'cd_likes_',
 };
 
+const MEDIA_DB = {
+  name: 'cd_media',
+  version: 1,
+  store: 'audioFiles',
+};
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+
 const authListeners = new Set();
 const sampleListeners = new Set();
 const likeListeners = new Map();
+const objectUrlCache = new Map();
 
 const read = (key, fallback) => {
   try {
@@ -25,14 +34,84 @@ const getUsers = () => read(KEYS.users, []);
 const getSamples = () => read(KEYS.samples, []);
 const getLikes = (uid) => read(`${KEYS.likesPrefix}${uid}`, []);
 
+const openMediaDb = () =>
+  new Promise((resolve, reject) => {
+    const request = indexedDB.open(MEDIA_DB.name, MEDIA_DB.version);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(MEDIA_DB.store)) {
+        db.createObjectStore(MEDIA_DB.store);
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('Failed to open local media storage.'));
+  });
+
+const saveAudioBlob = async (id, blob) => {
+  const db = await openMediaDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(MEDIA_DB.store, 'readwrite');
+    tx.objectStore(MEDIA_DB.store).put(blob, id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error('Failed to save audio file.'));
+  });
+  db.close();
+};
+
+const loadAudioBlob = async (id) => {
+  const db = await openMediaDb();
+  const blob = await new Promise((resolve, reject) => {
+    const tx = db.transaction(MEDIA_DB.store, 'readonly');
+    const request = tx.objectStore(MEDIA_DB.store).get(id);
+    request.onsuccess = () => resolve(request.result ?? null);
+    request.onerror = () => reject(request.error ?? new Error('Failed to read audio file.'));
+  });
+  db.close();
+  return blob;
+};
+
+const hydrateSampleMedia = async (sample) => {
+  if (sample.mediaType !== 'indexeddb') {
+    return sample;
+  }
+
+  const blob = await loadAudioBlob(sample.id);
+  if (!blob) {
+    return {
+      ...sample,
+      audioUrl: '',
+      downloadUrl: '',
+      missingMedia: true,
+    };
+  }
+
+  const oldUrl = objectUrlCache.get(sample.id);
+  if (oldUrl) {
+    URL.revokeObjectURL(oldUrl);
+  }
+
+  const objectUrl = URL.createObjectURL(blob);
+  objectUrlCache.set(sample.id, objectUrl);
+
+  return {
+    ...sample,
+    audioUrl: objectUrl,
+    downloadUrl: objectUrl,
+    missingMedia: false,
+  };
+};
+
 const emitAuth = () => {
   const user = getCurrentUser();
   authListeners.forEach((cb) => cb(user));
 };
 
-const emitSamples = () => {
-  const samples = getSamples().sort((a, b) => b.createdAt - a.createdAt);
-  sampleListeners.forEach((cb) => cb(samples));
+const emitSamples = async () => {
+  const sorted = getSamples().sort((a, b) => b.createdAt - a.createdAt);
+  const hydrated = await Promise.all(sorted.map((sample) => hydrateSampleMedia(sample)));
+  sampleListeners.forEach((cb) => cb(hydrated));
 };
 
 const emitLikes = (uid) => {
@@ -70,7 +149,8 @@ export async function logout() {
 
 export function subscribeSamples(cb) {
   sampleListeners.add(cb);
-  cb(getSamples().sort((a, b) => b.createdAt - a.createdAt));
+  cb([]);
+  emitSamples();
   return () => sampleListeners.delete(cb);
 }
 
@@ -93,30 +173,43 @@ export async function toggleLike(uid, sampleId) {
   emitLikes(uid);
 }
 
-const fileToDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('Could not read audio file.'));
-    reader.readAsDataURL(file);
-  });
+const validateAudioUpload = (file) => {
+  if (!file) {
+    throw new Error('Please choose an MP3 file first.');
+  }
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error('File is too large. Keep uploads under 20MB in this demo build.');
+  }
+};
 
 export async function uploadSample(user, payload) {
-  const dataUrl = await fileToDataUrl(payload.file);
+  validateAudioUpload(payload.file);
+
+  const sampleId = crypto.randomUUID();
   const sample = {
-    id: crypto.randomUUID(),
+    id: sampleId,
     title: payload.title,
     genre: payload.genre,
     tags: payload.tags,
     highlight: payload.highlight,
     bpm: Number(payload.bpm),
     producer: user.email,
-    audioUrl: dataUrl,
-    downloadUrl: dataUrl,
     userId: user.uid,
     createdAt: Date.now(),
+    mediaType: 'indexeddb',
+    originalFileName: payload.file.name,
   };
 
-  write(KEYS.samples, [sample, ...getSamples()]);
-  emitSamples();
+  try {
+    await saveAudioBlob(sampleId, payload.file);
+    write(KEYS.samples, [sample, ...getSamples()]);
+    await emitSamples();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      throw new Error('Storage is full. Remove large browser data or upload a smaller file.');
+    }
+
+    throw error;
+  }
 }
