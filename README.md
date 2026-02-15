@@ -4,12 +4,13 @@ CrateDigger is a web app for producers to discover and share sample clips.
 
 ## Features
 
-- Email/password-style user accounts (local demo auth)
+- Username + email/password user accounts (local demo auth)
 - Home feed loaded from app storage (no static hardcoded sample seed)
 - Likes tab persisted per user account
 - Upload tab for MP3 files + genre + vibe tags + highlight + BPM
 - Download button per sample
-- Shorts-style vertical feed with preview, like, and download actions
+- Shorts-style vertical feed with preview, like, download, and delete-your-own upload actions
+- Sticky mini playbar with global play/pause for the active preview
 
 ## Install
 

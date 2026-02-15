@@ -34,6 +34,8 @@ const getUsers = () => read(KEYS.users, []);
 const getSamples = () => read(KEYS.samples, []);
 const getLikes = (uid) => read(`${KEYS.likesPrefix}${uid}`, []);
 
+const fallbackUsername = (email) => email.split('@')[0] || 'producer';
+
 const openMediaDb = () =>
   new Promise((resolve, reject) => {
     const request = indexedDB.open(MEDIA_DB.name, MEDIA_DB.version);
@@ -70,6 +72,17 @@ const loadAudioBlob = async (id) => {
   });
   db.close();
   return blob;
+};
+
+const deleteAudioBlob = async (id) => {
+  const db = await openMediaDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(MEDIA_DB.store, 'readwrite');
+    tx.objectStore(MEDIA_DB.store).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error('Failed to delete audio file.'));
+  });
+  db.close();
 };
 
 const hydrateSampleMedia = async (sample) => {
@@ -120,6 +133,16 @@ const emitLikes = (uid) => {
   listeners.forEach((cb) => cb(likes));
 };
 
+const removeSampleFromAllLikes = (sampleId) => {
+  const users = getUsers();
+  users.forEach((entry) => {
+    const key = `${KEYS.likesPrefix}${entry.uid}`;
+    const nextLikes = read(key, []).filter((id) => id !== sampleId);
+    write(key, nextLikes);
+    emitLikes(entry.uid);
+  });
+};
+
 export function subscribeAuth(cb) {
   authListeners.add(cb);
   cb(getCurrentUser());
@@ -129,16 +152,31 @@ export function subscribeAuth(cb) {
 export async function login(email, password) {
   const found = getUsers().find((entry) => entry.email === email && entry.password === password);
   if (!found) throw new Error('Invalid email or password.');
-  write(KEYS.user, { uid: found.uid, email: found.email });
+
+  write(KEYS.user, {
+    uid: found.uid,
+    email: found.email,
+    username: found.username || fallbackUsername(found.email),
+  });
   emitAuth();
 }
 
-export async function signup(email, password) {
+export async function signup(username, email, password) {
   const users = getUsers();
+  const trimmedUsername = username.trim();
+
+  if (trimmedUsername.length < 2) {
+    throw new Error('Username must be at least 2 characters.');
+  }
+
   if (users.some((entry) => entry.email === email)) throw new Error('Email already exists.');
-  const created = { uid: crypto.randomUUID(), email, password };
+  if (users.some((entry) => entry.username?.toLowerCase() === trimmedUsername.toLowerCase())) {
+    throw new Error('Username is already taken.');
+  }
+
+  const created = { uid: crypto.randomUUID(), username: trimmedUsername, email, password };
   write(KEYS.users, [...users, created]);
-  write(KEYS.user, { uid: created.uid, email: created.email });
+  write(KEYS.user, { uid: created.uid, email: created.email, username: created.username });
   emitAuth();
 }
 
@@ -194,7 +232,7 @@ export async function uploadSample(user, payload) {
     tags: payload.tags,
     highlight: payload.highlight,
     bpm: Number(payload.bpm),
-    producer: user.email,
+    producer: user.username || fallbackUsername(user.email),
     userId: user.uid,
     createdAt: Date.now(),
     mediaType: 'indexeddb',
@@ -212,4 +250,29 @@ export async function uploadSample(user, payload) {
 
     throw error;
   }
+}
+
+export async function deleteSample(user, sampleId) {
+  const sample = getSamples().find((entry) => entry.id === sampleId);
+  if (!sample) return;
+  if (sample.userId !== user.uid) {
+    throw new Error('You can only delete your own uploads.');
+  }
+
+  if (sample.mediaType === 'indexeddb') {
+    await deleteAudioBlob(sampleId);
+  }
+
+  const cachedUrl = objectUrlCache.get(sampleId);
+  if (cachedUrl) {
+    URL.revokeObjectURL(cachedUrl);
+    objectUrlCache.delete(sampleId);
+  }
+
+  write(
+    KEYS.samples,
+    getSamples().filter((entry) => entry.id !== sampleId)
+  );
+  removeSampleFromAllLikes(sampleId);
+  await emitSamples();
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 export default function AuthPanel({ onLogin, onSignup }) {
   const [mode, setMode] = useState('login');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,7 +15,7 @@ export default function AuthPanel({ onLogin, onSignup }) {
       if (mode === 'login') {
         await onLogin(email, password);
       } else {
-        await onSignup(email, password);
+        await onSignup(username, email, password);
       }
     } catch (err) {
       setError(err.message);
@@ -25,6 +26,16 @@ export default function AuthPanel({ onLogin, onSignup }) {
     <section className="auth-panel">
       <h2>{mode === 'login' ? 'Login' : 'Create account'}</h2>
       <form onSubmit={submit} className="stack">
+        {mode === 'signup' ? (
+          <input
+            type="text"
+            placeholder="Your producer username"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            minLength={2}
+            required
+          />
+        ) : null}
         <input type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <input
           type="password"

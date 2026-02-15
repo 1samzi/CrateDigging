@@ -5,6 +5,7 @@ import UploadForm from './components/UploadForm';
 import useAuth from './hooks/useAuth';
 import useLikes from './hooks/useLikes';
 import useSamples from './hooks/useSamples';
+import { deleteSample } from './lib/backend';
 
 const TABS = {
   HOME: 'home',
@@ -45,7 +46,7 @@ export default function App() {
     <main className="app">
       <header className="top-bar">
         <h1>CrateDigger</h1>
-        <p>Welcome {user.email}</p>
+        <p>Welcome @{user.username || user.email?.split('@')[0]}</p>
         <button className="tab signout" onClick={logout}>
           Sign out
         </button>
@@ -68,7 +69,13 @@ export default function App() {
       ) : samplesLoading ? (
         <p className="empty-state">Loading samples...</p>
       ) : (
-        <SwipeDeck samples={visibleSamples} likedIds={likedIds} onToggleLike={toggleLike} />
+        <SwipeDeck
+          user={user}
+          samples={visibleSamples}
+          likedIds={likedIds}
+          onToggleLike={toggleLike}
+          onDeleteSample={(sampleId) => deleteSample(user, sampleId)}
+        />
       )}
     </main>
   );
